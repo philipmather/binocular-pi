@@ -129,9 +129,8 @@ As per https://www.pyimagesearch.com/2019/09/16/install-opencv-4-on-raspberry-pi
  ~~~https://github.com/amymcgovern/pyparrot/issues/34~~~
 ```
 sudo apt-get remove python3-opencv
-sudo apt-get install build-essential cmake git unzip pkg-config libjpeg-dev libtiff5-dev libjasper-dev libpng-dev libavcodec-dev libavformat-dev libswscale-dev libv4l-dev libxvidcore-dev libx264-dev libfontconfig1-dev libcairo2-dev libgdk-pixbuf2.0-dev libpango1.0-dev libgtk2.0-dev libgtk-3-dev libatlas-base-dev gfortran libhdf5-dev libhdf5-serial-dev libhdf5-103 libqtgui4 libqtwebkit4 libqt4-test python3-pyqt5 python3-dev
-
-libtiff-dev libcanberra-gtk* libtbb2 libtbb-dev libdc1394-22-dev v4l-utils libopenblas-dev libatlas-base-dev libblas-dev liblapack-dev gfortran gcc-arm* protobuf-compiler
+sudo apt-get install build-essential cmake git unzip pkg-config libjpeg-dev libtiff5-dev libjasper-dev libpng12-dev ibavcodec-dev libavformat-dev libswscale-dev libv4l-dev libxvidcore-dev libx264-dev libfontconfig1-dev libcairo2-dev libgdk-pixbuf2.0-dev libpango1.0-dev libgtk2.0-dev libgtk-3-dev libatlas-base-dev gfortran libhdf5-dev libhdf5-serial-dev libhdf5-103 libqtgui4 libqtwebkit4 libqt4-test python3-pyqt5 python3-dev libtiff-dev libcanberra-gtk* libtbb2 libtbb-dev libdc1394-22-dev v4l-utils libopenblas-dev libatlas-base-dev libblas-dev liblapack-dev gfortran gcc-arm* protobuf-compiler g++-arm-linux-gnueabihf
+sudo apt install liblapacke-dev
 
 sudo pip3 install virtualenv virtualenvwrapper
 
@@ -231,13 +230,18 @@ May 16 19:16:34 raspberrypi dphys-swapfile[8012]: want /var/swap=100MByte, check
 May 16 19:16:34 raspberrypi systemd[1]: Started dphys-swapfile - set up, mount/unmount, and delete a swap file.
 Hint: Some lines were ellipsized, use -l to show in full.
 
+# VTK bits from https://blog.kitware.com/raspberry-pi-likes-vtk/
+sudo apt-get install libvtk6-dev libgl1-mesa-dev libxt-dev libosmesa-dev
 
 # test later, https://qengineering.eu/install-opencv-4.1-on-raspberry-pi-4.html
 cmake -D CMAKE_BUILD_TYPE=RELEASE \
         -D CMAKE_INSTALL_PREFIX=/usr/local \
-        -D OPENCV_EXTRA_MODULES_PATH=~/Porjects/opencv_contrib-4.3.0/modules/ \
+        -D OPENCV_EXTRA_MODULES_PATH=~/Projects/opencv_contrib-4.3.0/modules/ \
+        -D Atlas_INCLUDE_DIR=/usr/include/arm-linux-gnueabihf \
         -D ENABLE_NEON=ON \
         -D ENABLE_VFPV3=ON \
+        -D WITH_VTK=ON \
+        -D WITH_TENGINE=OFF \
         -D WITH_OPENMP=ON \
         -D BUILD_TIFF=ON \
         -D WITH_FFMPEG=ON \
@@ -245,10 +249,8 @@ cmake -D CMAKE_BUILD_TYPE=RELEASE \
         -D WITH_TBB=ON \
         -D BUILD_TBB=ON \
         -D BUILD_TESTS=OFF \
-#        -D WITH_EIGEN=OFF \
         -D WITH_V4L=ON \
         -D WITH_LIBV4L=ON \
-#        -D WITH_VTK=OFF \
         -D OPENCV_EXTRA_EXE_LINKER_FLAGS=-latomic \
         -D OPENCV_ENABLE_NONFREE=ON \
         -D INSTALL_C_EXAMPLES=OFF \
@@ -258,8 +260,30 @@ cmake -D CMAKE_BUILD_TYPE=RELEASE \
         -D OPENCV_GENERATE_PKGCONFIG=ON \
         -D BUILD_EXAMPLES=OFF ..
 
-# also https://github.com/opencv/opencv/wiki/Tengine-based-acceleration
+#        -D WITH_EIGEN=OFF \
 
+# also https://github.com/opencv/opencv/wiki/Tengine-based-acceleration
+#        -D WITH_TENGINE=ON \
+# DO NOT DO THAT, dire performance ensued, went from detecting in 0.3s to 20?!?
+
+$ sudo make install
+(cv) pi@raspberrypi:~/Projects/opencv-4.3.0/build $ sudo ldconfig
+(cv) pi@raspberrypi:~/Projects/opencv-4.3.0/build $ sudo apt-get update
+Get:1 http://raspbian.raspberrypi.org/raspbian buster InRelease [15.0 kB]
+Get:2 http://archive.raspberrypi.org/debian buster InRelease [25.1 kB]
+Get:3 http://raspbian.raspberrypi.org/raspbian buster/main armhf Packages [13.0 MB]
+Get:4 http://archive.raspberrypi.org/debian buster/main armhf Packages [328 kB]
+Fetched 13.4 MB in 47s (286 kB/s)                                                                                                          
+Reading package lists... Done
+(cv) pi@raspberrypi:~/Projects/opencv-4.3.0/build $ sudo sed -ie 's/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=100/' /etc/dphys-swapfile
+(cv) pi@raspberrypi:~/Projects/opencv-4.3.0/build $ sudo /etc/init.d/dphys-swapfile restart
+[ ok ] Restarting dphys-swapfile (via systemctl): dphys-swapfile.service.
+
+(cv) pi@raspberrypi:~/Projects/opencv-4.3.0/build $ cd ~/.virtualenvs/cv/lib/python3.7/site-packages
+(cv) pi@raspberrypi:~/.virtualenvs/cv/lib/python3.7/site-packages $ ln -s /usr/local/lib/python3.7/site-packages/cv2/python-3.7/cv2.cpython-37m-arm-linux-gnueabihf.so
+
+ python extract_embeddings.py --dataset ~/Pictures/individuals/ --embeddings output/embeddings.pickle --detector face_detection_model --embedding-model ./embedding_model/openface_nn4.small2.v1.t7
+ python train_model.py --embeddings output/embeddings.pickle --recognizer output/recognizer.pickle --le output/le.pickle
 
 ```
 
@@ -275,3 +299,6 @@ https://gist.github.com/tedmiston/6060034
 https://docs.opencv.org/4.2.0/d2/de6/tutorial_py_setup_in_ubuntu.html
 https://stereopi.com/blog/opencv-comparing-speed-c-and-python-code-raspberry-pi-stereo-vision
 https://www.pyimagesearch.com/2018/09/24/opencv-face-recognition
+https://www.pyimagesearch.com/2017/10/09/optimizing-opencv-on-the-raspberry-pi/
+https://github.com/opencv/opencv/wiki/Tengine-based-acceleration
+https://blog.kitware.com/raspberry-pi-likes-vtk/

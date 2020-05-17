@@ -79,7 +79,7 @@ def run():
       frame2 = ct2.next()
 
       targets1 = rec1.faces(frame1)
-#      targets2 = rec2.faces(frame2)      
+      targets2 = rec2.faces(frame2)      
 
       # display coordinate data
       fps1 = int(ct1.current_frame_rate)
@@ -94,7 +94,7 @@ def run():
       if key == ord('q'):
         break
 
-      if main_loop_count >= 10:
+      if main_loop_count >= 50:
         # update loop rate
         main_loop_rate = round(main_loop_count/(time.time()-t1),2)
         main_loop_count = 0
@@ -251,7 +251,7 @@ class Camera_Thread:
       fc += 1
 
       # update frame read rate
-      if fc >= 10:
+      if fc >= 50:
         self.current_frame_rate = round(fc/(time.time()-t1),2)
         fc = 0
         t1 = time.time()
@@ -284,7 +284,7 @@ class Recognizer:
   # check if the next 3 class models have been loaded already and skip?
 
   # load our serialized face detector from disk
-  print("[INFO] loading face detector...")
+#  print("[INFO] loading face detector...")
   protoPath = "face_detection_model/deploy.prototxt"
   modelPath = "face_detection_model/res10_300x300_ssd_iter_140000.caffemodel"
   detector = cv2.dnn.readNetFromCaffe(protoPath, modelPath)
@@ -300,10 +300,10 @@ class Recognizer:
   # endif?
 
   def faces(self, frame):
-    t0 = time.time()
+#    t0 = time.time()
 
     # resize the frame to have a width of 600 pixels (while maintaining the aspect ratio), and then grab the image dimensions
-#    resizedFrame = imutils.resize(frame, width=600)
+    #frame = imutils.resize(frame, width=600)
     (h, w) = frame.shape[:2]
 
     # construct a blob from the image, blobbing is fast
@@ -315,7 +315,7 @@ class Recognizer:
     # apply OpenCV's deep learning-based face detector to localize faces in the input image, detecting is slow ~0.36s
     self.detector.setInput(imageBlob)
     detections = self.detector.forward()
-    print('Time to detect ', time.time()-t0)
+#    print('Time to detect ', time.time()-t0)
 
     targets = []
     # loop over the detections
@@ -358,9 +358,10 @@ class Recognizer:
 
         # draw the bounding box of the face along with the associated probability
         text = "{}: {:.2f}%".format(name, proba * 100)
+        print(text)
         y = startY - 10 if startY - 10 > 10 else startY + 10
         cv2.rectangle(frame, (startX, startY), (endX, endY), (0, 0, 255), 2)
-        cv2.putText(frame, text, (startX, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
+#        cv2.putText(frame, text, (startX, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
 
     return [(x,y,bx,by,bw,bh) for (size,x,y,bx,by,bw,bh) in targets]
 
