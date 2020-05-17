@@ -4,12 +4,12 @@ Simply display the contents of the webcam with optional mirroring using OpenCV
 via the new Pythonic cv2 interface.  Press <esc> to quit.
 """
 
-import cv2#,imutils
+import cv2,imutils
 import threading,queue,time
 import numpy as np
 import traceback
 #import os,argparse
-#import pickle
+import pickle
 
 def run():
   try:
@@ -19,7 +19,7 @@ def run():
     pixel_height = 480 #720 #240 #480
 #    angle_width = 78
 #    angle_height = 64 # 63
-    frame_rate = 20
+    frame_rate = 30
 #   camera_separation = 5 + 15/16
 
     # left camera 1
@@ -52,12 +52,18 @@ def run():
     ct1.start()
     ct2.start()
 
+    rec1 = Recognizer()
+    rec2 = Recognizer()
+
     # ------------------------------
     # stabilize 
     # ------------------------------
 
     # pause to stabilize
     time.sleep(0.25)
+    main_loop_count = 0
+    main_loop_rate = 0
+    t1 = time.time()
 
     X,Y,Z,D = 0,0,0,0
     blank = np.zeros(shape=(pixel_height,pixel_width,3)).astype('uint8')
@@ -72,29 +78,14 @@ def run():
       frame1 = ct1.next()
       frame2 = ct2.next()
 
+      targets1 = rec1.faces(frame1)
+#      targets2 = rec2.faces(frame2)      
+
       # display coordinate data
       fps1 = int(ct1.current_frame_rate)
       fps2 = int(ct2.current_frame_rate)
 
-      text = 'X: {:3.1f} Y: {:3.1f} Z: {:3.1f} D: {:3.1f} FPS: {}/{}'.format(X,Y,Z,D,fps1,fps2)
-#      print(text)
-#      lineloc = 0
-#      lineheight = 30
-#      for t in text.split('\n'):
-#        lineloc += lineheight
-#        cv2.putText(frame1,
-#                    t,
-#                    (10,lineloc), # location
-#                    cv2.FONT_HERSHEY_PLAIN, # font
-#                    #cv2.FONT_HERSHEY_SIMPLEX, # font
-#                    1.5, # size
-#                    (0,255,0), # color
-#                    1, # line width
-#                    cv2.LINE_AA, #
-#                    False) #
-
       # display frame
-#      print('Displaying frames')
       cv2.imshow("Left",frame1)
       cv2.imshow("Right",frame2)
 
@@ -102,8 +93,32 @@ def run():
       key = cv2.waitKey(1) & 0xFF
       if key == ord('q'):
         break
+
+      if main_loop_count >= 10:
+        # update loop rate
+        main_loop_rate = round(main_loop_count/(time.time()-t1),2)
+        main_loop_count = 0
+        t1 = time.time()
+
+        text = 'X: {:3.1f} Y: {:3.1f} Z: {:3.1f} D: {:3.1f} FPS: {}/{} LPS {}:'.format(X,Y,Z,D,fps1,fps2,main_loop_rate)
+        print(text)
+        lineloc = 0
+        lineheight = 30
+        for t in text.split('\n'):
+          lineloc += lineheight
+          cv2.putText(frame1,
+                      t,
+                      (10,lineloc), # location
+                      cv2.FONT_HERSHEY_PLAIN, # font
+                      1.5, # size
+                      (0,255,0), # color
+                      1, # line width
+                      cv2.LINE_AA,
+                      False)
 #      elif key != 255:
 #        print('KEY PRESS:',[chr(key)])
+
+      main_loop_count += 1
 
   except:
     print("Failed during main execution")
@@ -211,7 +226,7 @@ class Camera_Thread:
 
     # status
     self.frame_grab_on = True
-    self.loop_start_time = time.time()
+#    self.loop_start_time = time.time()
 
     # frame rate
     fc = 0
@@ -242,7 +257,7 @@ class Camera_Thread:
         t1 = time.time()
 
     # shut down
-    self.loop_start_time = 0
+#    self.loop_start_time = 0
     self.frame_grab_on = False
     self.stop()
 
@@ -258,6 +273,96 @@ class Camera_Thread:
 
     # done
     return frame
+
+
+# ---
+# Face recgnizer
+# ---
+
+class Recognizer:
+
+  # check if the next 3 class models have been loaded already and skip?
+
+  # load our serialized face detector from disk
+  print("[INFO] loading face detector...")
+  protoPath = "face_detection_model/deploy.prototxt"
+  modelPath = "face_detection_model/res10_300x300_ssd_iter_140000.caffemodel"
+  detector = cv2.dnn.readNetFromCaffe(protoPath, modelPath)
+
+  # load our serialized face embedding model from disk
+#  print("[INFO] loading face recognizer...")
+  embedder = cv2.dnn.readNetFromTorch("embedding_model/openface_nn4.small2.v1.t7")
+
+  # load the actual face recognition model along with the label encoder
+  recognizer = pickle.loads(open("output/recognizer.pickle", "rb").read())
+  le = pickle.loads(open("output/le.pickle", "rb").read())
+
+  # endif?
+
+  def faces(self, frame):
+    t0 = time.time()
+
+    # resize the frame to have a width of 600 pixels (while maintaining the aspect ratio), and then grab the image dimensions
+#    resizedFrame = imutils.resize(frame, width=600)
+    (h, w) = frame.shape[:2]
+
+    # construct a blob from the image, blobbing is fast
+#    imageBlob = cv2.dnn.blobFromImage(cv2.resize(frame, (150, 150)), 1.0, (300, 300), (104.0, 177.0, 123.0), swapRB=False, crop=False)
+#    imageBlob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0), swapRB=False, crop=False)
+    imageBlob = cv2.dnn.blobFromImage(frame, 1.0, (300, 300), (104.0, 177.0, 123.0), swapRB=False, crop=False)
+    #print('Time to blob ', time.time()-t0)
+
+    # apply OpenCV's deep learning-based face detector to localize faces in the input image, detecting is slow ~0.36s
+    self.detector.setInput(imageBlob)
+    detections = self.detector.forward()
+    print('Time to detect ', time.time()-t0)
+
+    targets = []
+    # loop over the detections
+    for i in range(0, detections.shape[2]):
+      # extract the confidence (i.e., probability) associated with the prediction
+      confidence = detections[0, 0, i, 2]
+
+      # filter out weak detections
+      if confidence > 0.5:
+        # compute the (x, y)-coordinates of the bounding box for the face
+        box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+        (startX, startY, endX, endY) = box.astype("int")
+
+        # extract the face ROI
+        face = frame[startY:endY, startX:endX]
+        (fH, fW) = face.shape[:2]
+
+        boxArea = (endX - startX) * (endY - startY)
+        area = h*w
+        p = 100 * boxArea / area
+
+        # todo: fix param 2 and 3 as these should be middle of target not just +10
+        #               %, targetX , targetY , boxX , boxY ,boxWidth, boxHieght
+        targets.append((p,startX+10,startY+10,startX,startY,fW,fH))
+        # ensure the face width and height are sufficiently large
+        if fW < 20 or fH < 20:
+          continue
+
+	# construct a blob for the face ROI, then pass the blob through our
+        # face embedding model to obtain the 128-d quantification of the face
+        faceBlob = cv2.dnn.blobFromImage(face, 1.0 / 255, (96, 96), (0, 0, 0), swapRB=True, crop=False)
+        self.embedder.setInput(faceBlob)
+        vec = self.embedder.forward()
+
+        # perform classification to recognize the face
+        preds = self.recognizer.predict_proba(vec)[0]
+        j = np.argmax(preds)
+        proba = preds[j]
+        name = self.le.classes_[j]
+
+        # draw the bounding box of the face along with the associated probability
+        text = "{}: {:.2f}%".format(name, proba * 100)
+        y = startY - 10 if startY - 10 > 10 else startY + 10
+        cv2.rectangle(frame, (startX, startY), (endX, endY), (0, 0, 255), 2)
+        cv2.putText(frame, text, (startX, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
+
+    return [(x,y,bx,by,bw,bh) for (size,x,y,bx,by,bw,bh) in targets]
 
 if __name__ == '__main__':
   run()
