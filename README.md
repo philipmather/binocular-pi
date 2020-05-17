@@ -124,4 +124,154 @@ pi@raspberrypi:~/Projects/binocular-pi $ source venv/bin/activate
 
 ```
 
+### Instal OpenCV
+As per https://www.pyimagesearch.com/2019/09/16/install-opencv-4-on-raspberry-pi-4-and-raspbian-buster/
+ ~~~https://github.com/amymcgovern/pyparrot/issues/34~~~
+```
+sudo apt-get remove python3-opencv
+sudo apt-get install build-essential cmake git unzip pkg-config libjpeg-dev libtiff5-dev libjasper-dev libpng-dev libavcodec-dev libavformat-dev libswscale-dev libv4l-dev libxvidcore-dev libx264-dev libfontconfig1-dev libcairo2-dev libgdk-pixbuf2.0-dev libpango1.0-dev libgtk2.0-dev libgtk-3-dev libatlas-base-dev gfortran libhdf5-dev libhdf5-serial-dev libhdf5-103 libqtgui4 libqtwebkit4 libqt4-test python3-pyqt5 python3-dev
 
+libtiff-dev libcanberra-gtk* libtbb2 libtbb-dev libdc1394-22-dev v4l-utils libopenblas-dev libatlas-base-dev libblas-dev liblapack-dev gfortran gcc-arm* protobuf-compiler
+
+sudo pip3 install virtualenv virtualenvwrapper
+
+echo "# virtualenv and virtualenvwrapper
+export WORKON_HOME=$HOME/.virtualenvs
+export VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3
+export VIRTUALENVWRAPPER_VIRTUALENV=/usr/local/bin/virtualenv
+source /usr/local/bin/virtualenvwrapper.sh
+export VIRTUALENVWRAPPER_ENV_BIN_DIR=bin" >> ~/.bashrc
+
+source ~/.bashrc
+mkvirtualenv cv -p python3
+
+pi@raspberrypi:~/Projects/binocular-pi $ cd ~/Projects/
+pi@raspberrypi:~/Projects $ wget https://github.com/opencv/opencv/archive/4.3.0.tar.gz
+mv 4.3.0.tar.gz opencv-4.3.0.tar.gz 
+
+wget https://github.com/opencv/opencv_contrib/archive/4.3.0.tar.gz
+mv 4.3.0.tar.gz opencv_contrib-4.3.0.tar.gz 
+
+tar -xzvf opencv-4.3.0.tar.gz
+tar -xzvf opencv_contrib-4.3.0.tar.gz
+
+pi@raspberrypi:~/Projects $ ls -lad opencv*
+drwxr-xr-x 11 pi pi     4096 Apr  3 12:45 opencv-4.3.0
+-rw-r--r--  1 pi pi 87941482 May 12 21:38 opencv-4.3.0.tar.gz
+drwxr-xr-x  6 pi pi     4096 Apr  2 18:01 opencv_contrib-4.3.0
+-rw-r--r--  1 pi pi 60881379 May 12 21:30 opencv_contrib-4.3.0.tar.gz
+
+pi@raspberrypi:~/Projects $ sudo sed -ie 's/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=2048/' /etc/dphys-swapfile
+
+pi@raspberrypi:~/Projects $ sudo /etc/init.d/dphys-swapfile stop
+[ ok ] Stopping dphys-swapfile (via systemctl): dphys-swapfile.service.
+pi@raspberrypi:~/Projects $ sudo /etc/init.d/dphys-swapfile start
+[ ok ] Starting dphys-swapfile (via systemctl): dphys-swapfile.service.
+
+workon cv
+pip install numpy imutils scikit-lean
+
+(cv) pi@raspberrypi:~/Projects $ cd ~/Projects/opencv-4.3.0/
+(cv) pi@raspberrypi:~/Projects/opencv-4.3.0 $ mkdir build
+(cv) pi@raspberrypi:~/Projects/opencv-4.3.0 $ cd build
+(cv) pi@raspberrypi:~/Projects/opencv-4.3.0/build $ cmake -D CMAKE_BUILD_TYPE=RELEASE \
+     -D CMAKE_INSTALL_PREFIX=/usr/local \
+     -D OPENCV_EXTRA_MODULES_PATH=~/Projects/opencv_contrib-4.3.0/modules/ \
+     -D ENABLE_NEON=ON \
+     -D ENABLE_VFPV3=ON \
+     -D BUILD_TESTS=OFF \
+     -D INSTALL_PYTHON_EXAMPLES=OFF \
+     -D OPENCV_ENABLE_NONFREE=ON \
+     -D CMAKE_SHARED_LINKER_FLAGS=-latomic \
+     -D BUILD_EXAMPLES=OFF ..
+
+(cv) pi@raspberrypi:~/Projects/opencv-4.3.0/build $ make -j4
+
+(cv) pi@raspberrypi:~/Projects/opencv-4.3.0/build $ sudo make install
+[  8%] Built target libwebp
+[ 15%] Built target IlmImf
+...
+-- Installing: /usr/local/bin/opencv_interactive-calibration
+-- Set runtime path of "/usr/local/bin/opencv_interactive-calibration" to "/usr/local/lib"
+-- Installing: /usr/local/bin/opencv_version
+-- Set runtime path of "/usr/local/bin/opencv_version" to "/usr/local/lib"
+
+(cv) pi@raspberrypi:~/Projects/opencv-4.3.0/build $ sudo ldconfig
+(cv) pi@raspberrypi:~/Projects/opencv-4.3.0/build $ sudo apt-get update
+
+(cv) pi@raspberrypi:~/Projects/opencv-4.3.0/build $ cd /usr/local/lib/python3.7/site-packages/cv2/python-3.7
+(cv) pi@raspberrypi:/usr/local/lib/python3.7/site-packages/cv2/python-3.7 $ sudo mv cv2.cpython-37m-arm-linux-gnueabihf.so cv2.so
+cv2.cpython-37m-arm-linux-gnueabihf.so
+(cv) pi@raspberrypi:/usr/local/lib/python3.7/site-packages/cv2/python-3.7 $ sudo mv cv2.cpython-37m-arm-linux-gnueabihf.so cv2.so
+(cv) pi@raspberrypi:/usr/local/lib/python3.7/site-packages/cv2/python-3.7 $ cd ~/.virtualenvs/cv/lib/python3.7/site-packages/
+(cv) pi@raspberrypi:~/.virtualenvs/cv/lib/python3.7/site-packages $ n -s /usr/local/lib/python3.7/site-packages/cv2/python-3.7/cv2.so cv2.so^C
+(cv) pi@raspberrypi:~/.virtualenvs/cv/lib/python3.7/site-packages $ ln -s /usr/local/lib/python3.7/site-packages/cv2/python-3.7/cv2.so cv2.so
+(cv) pi@raspberrypi:~/.virtualenvs/cv/lib/python3.7/site-packages $ python
+Python 3.7.3 (default, Dec 20 2019, 18:57:59) 
+[GCC 8.3.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import cv2
+>>> cv2.__version__
+'4.3.0'
+
+pi@raspberrypi:~/Projects/opencv-4.3.0/build $ sudo sed -ie 's/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=100/' /etc/dphys-swapfile
+pi@raspberrypi:~/Projects/opencv-4.3.0/build $ sudo /etc/init.d/dphys-swapfile restart
+[ ok ] Restarting dphys-swapfile (via systemctl): dphys-swapfile.service.
+pi@raspberrypi:~/Projects/opencv-4.3.0/build $ sudo /etc/init.d/dphys-swapfile status
+● dphys-swapfile.service - dphys-swapfile - set up, mount/unmount, and delete a swap file
+   Loaded: loaded (/lib/systemd/system/dphys-swapfile.service; enabled; vendor preset: enabled)
+   Active: active (exited) since Sat 2020-05-16 19:16:34 BST; 6s ago
+     Docs: man:dphys-swapfile(8)
+  Process: 8012 ExecStart=/sbin/dphys-swapfile setup (code=exited, status=0/SUCCESS)
+  Process: 8051 ExecStart=/sbin/dphys-swapfile swapon (code=exited, status=0/SUCCESS)
+ Main PID: 8051 (code=exited, status=0/SUCCESS)
+
+May 16 19:16:34 raspberrypi systemd[1]: Starting dphys-swapfile - set up, mount/unmount, and delete a swap file...
+May 16 19:16:34 raspberrypi dphys-swapfile[8012]: want /var/swap=100MByte, checking existing: deleting wrong size file (2147483648…100MBytes
+May 16 19:16:34 raspberrypi systemd[1]: Started dphys-swapfile - set up, mount/unmount, and delete a swap file.
+Hint: Some lines were ellipsized, use -l to show in full.
+
+
+# test later, https://qengineering.eu/install-opencv-4.1-on-raspberry-pi-4.html
+cmake -D CMAKE_BUILD_TYPE=RELEASE \
+        -D CMAKE_INSTALL_PREFIX=/usr/local \
+        -D OPENCV_EXTRA_MODULES_PATH=~/Porjects/opencv_contrib-4.3.0/modules/ \
+        -D ENABLE_NEON=ON \
+        -D ENABLE_VFPV3=ON \
+        -D WITH_OPENMP=ON \
+        -D BUILD_TIFF=ON \
+        -D WITH_FFMPEG=ON \
+        -D WITH_GSTREAMER=ON \
+        -D WITH_TBB=ON \
+        -D BUILD_TBB=ON \
+        -D BUILD_TESTS=OFF \
+#        -D WITH_EIGEN=OFF \
+        -D WITH_V4L=ON \
+        -D WITH_LIBV4L=ON \
+#        -D WITH_VTK=OFF \
+        -D OPENCV_EXTRA_EXE_LINKER_FLAGS=-latomic \
+        -D OPENCV_ENABLE_NONFREE=ON \
+        -D INSTALL_C_EXAMPLES=OFF \
+        -D INSTALL_PYTHON_EXAMPLES=OFF \
+        -D BUILD_NEW_PYTHON_SUPPORT=ON \
+        -D BUILD_opencv_python3=TRUE \
+        -D OPENCV_GENERATE_PKGCONFIG=ON \
+        -D BUILD_EXAMPLES=OFF ..
+
+# also https://github.com/opencv/opencv/wiki/Tengine-based-acceleration
+
+
+```
+
+## Git config
+```
+echo "output/**" >> .gitignore
+```
+
+## References
+https://pypi.org/project/opencv-contrib-python/
+https://github.com/scivision/pyimagevideo
+https://gist.github.com/tedmiston/6060034
+https://docs.opencv.org/4.2.0/d2/de6/tutorial_py_setup_in_ubuntu.html
+https://stereopi.com/blog/opencv-comparing-speed-c-and-python-code-raspberry-pi-stereo-vision
+https://www.pyimagesearch.com/2018/09/24/opencv-face-recognition
