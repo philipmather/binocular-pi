@@ -29,6 +29,7 @@ def run():
     ct1.camera_width = pixel_width
     ct1.camera_height = pixel_height
     ct1.camera_frame_rate = frame_rate
+    leftFrame = None
 
     # right camera 2
     ct2 = Camera_Thread()
@@ -37,6 +38,7 @@ def run():
     ct2.camera_width = pixel_width
     ct2.camera_height = pixel_height
     ct2.camera_frame_rate = frame_rate
+    rightFrame = None
 
     # camera coding
     #ct1.camera_fourcc = cv2.VideoWriter_fourcc(*"YUYV")
@@ -51,9 +53,6 @@ def run():
     # start cameras
     ct1.start()
     ct2.start()
-
-    rec1 = Recognizer()
-    rec2 = Recognizer()
 
     # ------------------------------
     # stabilize 
@@ -73,21 +72,22 @@ def run():
     cv2.moveWindow(ct1.name,0,500)
     cv2.moveWindow(ct2.name,0+pixel_width,500)
 
+    rec = Recognizer_Thread()
+    rec.start()
+
     while True:
       # get frames
-      frame1 = ct1.next()
-      frame2 = ct2.next()
-
-      targets1 = rec1.faces(frame1)
-      targets2 = rec2.faces(frame2)      
+      leftFrame = ct1.next()
+      rightFrame = ct2.next()
+      targets = rec.next(leftFrame,rightFrame)
 
       # display coordinate data
       fps1 = int(ct1.current_frame_rate)
       fps2 = int(ct2.current_frame_rate)
 
       # display frame
-      cv2.imshow("Left",frame1)
-      cv2.imshow("Right",frame2)
+      cv2.imshow("Left",leftFrame)
+      cv2.imshow("Right",rightFrame)
 
       # detect keys
       key = cv2.waitKey(1) & 0xFF
@@ -106,7 +106,7 @@ def run():
         lineheight = 30
         for t in text.split('\n'):
           lineloc += lineheight
-          cv2.putText(frame1,
+          cv2.putText(leftFrame,
                       t,
                       (10,lineloc), # location
                       cv2.FONT_HERSHEY_PLAIN, # font
@@ -233,7 +233,7 @@ class Camera_Thread:
     t1 = time.time()
 
     # loop
-    while 1:
+    while True:
 
       # external shut down
       if not self.frame_grab_run:
@@ -279,9 +279,11 @@ class Camera_Thread:
 # Face recgnizer
 # ---
 
-class Recognizer:
+class Recognizer_Thread:
 
-  # check if the next 3 class models have been loaded already and skip?
+  buffer = None
+  leftFrame = np.zeros(shape=(300,300,3)).astype('uint8')
+  rightFrame = np.zeros(shape=(300,300,3)).astype('uint8')
 
   # load our serialized face detector from disk
 #  print("[INFO] loading face detector...")
@@ -297,73 +299,102 @@ class Recognizer:
   recognizer = pickle.loads(open("output/recognizer.pickle", "rb").read())
   le = pickle.loads(open("output/le.pickle", "rb").read())
 
-  # endif?
+  def start(self):
+    self.buffer = queue.Queue(1)
+    self.thread = threading.Thread(target=self.loop)
+    print('Starting recognizer')
+    self.thread.start()
 
-  def faces(self, frame):
-#    t0 = time.time()
+  def loop(self):
+    while True:
+      t0 = time.time()
+      frame = self.leftFrame
 
-    # resize the frame to have a width of 600 pixels (while maintaining the aspect ratio), and then grab the image dimensions
-    #frame = imutils.resize(frame, width=600)
-    (h, w) = frame.shape[:2]
+      # resize the frame to have a width of 600 pixels (while maintaining the aspect ratio), and then grab the image dimensions
+      #frame = imutils.resize(frame, width=600)
+      (h, w) = frame.shape[:2]
 
-    # construct a blob from the image, blobbing is fast
-#    imageBlob = cv2.dnn.blobFromImage(cv2.resize(frame, (150, 150)), 1.0, (300, 300), (104.0, 177.0, 123.0), swapRB=False, crop=False)
-#    imageBlob = cv2.dnn.blobFromImage(cv2.resize(frame, (300, 300)), 1.0, (300, 300), (104.0, 177.0, 123.0), swapRB=False, crop=False)
-    imageBlob = cv2.dnn.blobFromImage(frame, 1.0, (300, 300), (104.0, 177.0, 123.0), swapRB=False, crop=False)
-    #print('Time to blob ', time.time()-t0)
+      # construct a blob from the image, blobbing is fast
+      imageBlob = cv2.dnn.blobFromImage(frame, 1.0, (300, 300), (104.0, 177.0, 123.0), swapRB=False, crop=False)
+      #print('Time to blob ', time.time()-t0)
 
-    # apply OpenCV's deep learning-based face detector to localize faces in the input image, detecting is slow ~0.36s
-    self.detector.setInput(imageBlob)
-    detections = self.detector.forward()
-#    print('Time to detect ', time.time()-t0)
+      # apply OpenCV's deep learning-based face detector to localize faces in the input image, detecting is slow ~0.36s
+      self.detector.setInput(imageBlob)
+      detections = self.detector.forward()
+#     print('Time to detect ', time.time()-t0)
 
-    targets = []
-    # loop over the detections
-    for i in range(0, detections.shape[2]):
-      # extract the confidence (i.e., probability) associated with the prediction
-      confidence = detections[0, 0, i, 2]
+      targets = []
+      # loop over the detections
+      for i in range(0, detections.shape[2]):
+        # extract the confidence (i.e., probability) associated with the prediction
+        confidence = detections[0, 0, i, 2]
 
-      # filter out weak detections
-      if confidence > 0.5:
-        # compute the (x, y)-coordinates of the bounding box for the face
-        box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-        (startX, startY, endX, endY) = box.astype("int")
+        # filter out weak detections
+        if confidence > 0.5:
+          # compute the (x, y)-coordinates of the bounding box for the face
+          box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+          (startX, startY, endX, endY) = box.astype("int")
 
-        # extract the face ROI
-        face = frame[startY:endY, startX:endX]
-        (fH, fW) = face.shape[:2]
+          # extract the face ROI
+          face = frame[startY:endY, startX:endX]
+          (fH, fW) = face.shape[:2]
 
-        boxArea = (endX - startX) * (endY - startY)
-        area = h*w
-        p = 100 * boxArea / area
+          boxArea = (endX - startX) * (endY - startY)
+          area = h*w
+          p = 100 * boxArea / area
 
-        # todo: fix param 2 and 3 as these should be middle of target not just +10
-        #               %, targetX , targetY , boxX , boxY ,boxWidth, boxHieght
-        targets.append((p,startX+10,startY+10,startX,startY,fW,fH))
-        # ensure the face width and height are sufficiently large
-        if fW < 20 or fH < 20:
-          continue
+          # todo: fix param 2 and 3 as these should be middle of target not just +10
+          #               %, targetX , targetY , boxX , boxY ,boxWidth, boxHieght
+          targets.append((p,startX+10,startY+10,startX,startY,fW,fH))
+          # ensure the face width and height are sufficiently large
+          if fW < 20 or fH < 20:
+            continue
 
-	# construct a blob for the face ROI, then pass the blob through our
-        # face embedding model to obtain the 128-d quantification of the face
-        faceBlob = cv2.dnn.blobFromImage(face, 1.0 / 255, (96, 96), (0, 0, 0), swapRB=True, crop=False)
-        self.embedder.setInput(faceBlob)
-        vec = self.embedder.forward()
+	  # construct a blob for the face ROI, then pass the blob through our
+          # face embedding model to obtain the 128-d quantification of the face
+          faceBlob = cv2.dnn.blobFromImage(face, 1.0 / 255, (96, 96), (0, 0, 0), swapRB=True, crop=False)
+          self.embedder.setInput(faceBlob)
+          vec = self.embedder.forward()
 
-        # perform classification to recognize the face
-        preds = self.recognizer.predict_proba(vec)[0]
-        j = np.argmax(preds)
-        proba = preds[j]
-        name = self.le.classes_[j]
+          # perform classification to recognize the face
+          preds = self.recognizer.predict_proba(vec)[0]
+          j = np.argmax(preds)
+          proba = preds[j]
+          name = self.le.classes_[j]
 
-        # draw the bounding box of the face along with the associated probability
-        text = "{}: {:.2f}%".format(name, proba * 100)
-        print(text)
-        y = startY - 10 if startY - 10 > 10 else startY + 10
-        cv2.rectangle(frame, (startX, startY), (endX, endY), (0, 0, 255), 2)
-#        cv2.putText(frame, text, (startX, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
+          # draw the bounding box of the face along with the associated probability
+          text = "Detected {}, {:.2f}% certain in {:.2f}".format(name, proba * 100,time.time()-t0)
+          print(text)
+          y = startY - 10 if startY - 10 > 10 else startY + 10
+#          cv2.rectangle(frame, (startX, startY), (endX, endY), (0, 0, 255), 2)
+#          cv2.putText(frame, text, (startX, y), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
 
-    return [(x,y,bx,by,bw,bh) for (size,x,y,bx,by,bw,bh) in targets]
+      # open a spot in the buffer
+      if self.buffer.full():
+        self.buffer.get()
+
+      targets = [(x,y,bx,by,bw,bh) for (size,x,y,bx,by,bw,bh) in targets]
+      self.buffer.put(targets,False)
+
+#    print('never getting here')
+
+  def next(self,lFrame,rFrame):
+    self.leftFrame = lFrame
+    self.rightFrame = rFrame
+
+    # get from buffer (fail if empty)
+    try:
+      targets = self.buffer.get(False)
+    except queue.Empty:
+      targets = []
+#      print('Queue Empty!')
+      pass
+
+    # done
+    return targets
+
+  def stop():
+    self.buffer = None
 
 if __name__ == '__main__':
   run()
