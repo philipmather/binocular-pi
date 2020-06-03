@@ -231,7 +231,7 @@ May 16 19:16:34 raspberrypi systemd[1]: Started dphys-swapfile - set up, mount/u
 Hint: Some lines were ellipsized, use -l to show in full.
 
 # VTK bits from https://blog.kitware.com/raspberry-pi-likes-vtk/
-sudo apt-get install libvtk6-dev libgl1-mesa-dev libxt-dev libosmesa-dev
+sudo apt-get install libvtk6-dev libgl1-mesa-dev libxt-dev libosmesa-dev libopenjpip7
 
 # test later, https://qengineering.eu/install-opencv-4.1-on-raspberry-pi-4.html
 cmake -D CMAKE_BUILD_TYPE=RELEASE \
@@ -284,6 +284,30 @@ Reading package lists... Done
 
  python extract_embeddings.py --dataset ~/Pictures/individuals/ --embeddings output/embeddings.pickle --detector face_detection_model --embedding-model ./embedding_model/openface_nn4.small2.v1.t7
  python train_model.py --embeddings output/embeddings.pickle --recognizer output/recognizer.pickle --le output/le.pickle
+
+```
+
+## Overclocking the pi
+as per https://qengineering.eu/overclocking-the-raspberry-pi-4.html
+
+```
+# was getting 7/7 LPS 7.14: set
+arm_freq=1850
+over_voltage=3
+# in /etc/boot.config
+$ sudo apt-get update
+$ sudo apt-get dist-upgrade
+$ sudo rpi-update
+reboot
+# After firmware update 
+FPS: 7/7 LPS 7.7
+
+# After overclock, still at 640x480
+FPS: 30/30 LPS 30.02
+
+# needed two reboots?
+
+pip install vcgencmd 
 
 ```
 

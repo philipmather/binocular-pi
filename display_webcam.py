@@ -10,6 +10,7 @@ import numpy as np
 import traceback
 #import os,argparse
 import pickle
+from gpiozero import CPUTemperature
 
 def run():
   try:
@@ -49,6 +50,10 @@ def run():
     #ct2.camera_fourcc = cv2.VideoWriter_fourcc(*"XVID")
     #ct1.camera_fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
     #ct2.camera_fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
+    #ct1.camera_fourcc = cv2.VideoWriter_fourcc(*"BGR3")
+    #ct2.camera_fourcc = cv2.VideoWriter_fourcc(*"BGR3")
+    #ct1.camera_fourcc = cv2.VideoWriter_fourcc(*"YU12")
+    #ct2.camera_fourcc = cv2.VideoWriter_fourcc(*"YU12")
 
     # start cameras
     ct1.start()
@@ -59,27 +64,66 @@ def run():
     # ------------------------------
 
     # pause to stabilize
-    time.sleep(0.25)
+    time.sleep(0.01)
     main_loop_count = 0
     main_loop_rate = 0
     t1 = time.time()
 
     X,Y,Z,D = 0,0,0,0
     blank = np.zeros(shape=(pixel_height,pixel_width,3)).astype('uint8')
+    disparity = "Disparity"
 
     cv2.imshow(ct1.name,blank)
     cv2.imshow(ct2.name,blank)
+    cv2.imshow(disparity,blank)
     cv2.moveWindow(ct1.name,0,500)
-    cv2.moveWindow(ct2.name,0+pixel_width,500)
+    cv2.moveWindow(disparity,0+pixel_width,500)
+    cv2.moveWindow(ct2.name,0+(pixel_width*2),500)
 
     rec = Recognizer_Thread()
     rec.start()
+
+    # https://github.com/opencv/opencv/blob/3.4/samples/python/stereo_match.py
+    # disparity range is tuned for 'aloe' image pair
+#    window_size = 3 #3
+#    min_disp = 16 #16
+#    num_disp = 112-min_disp #112
+
+#    stereo = cv2.StereoSGBM_create(
+#      minDisparity = min_disp,
+#      numDisparities = num_disp,
+#      blockSize = 16,
+#      P1 = 8*3*window_size**2,
+#      P2 = 32*3*window_size**2,
+#      disp12MaxDiff = 1,
+#      uniquenessRatio = 10,
+#      speckleWindowSize = 100,
+#      speckleRange = 32
+#    )
+
+    block_size = 3
+    min_disp = 0
+    num_disp = 80 - min_disp #96
+
+    stereo = cv2.StereoSGBM_create(minDisparity   = min_disp, 
+                                   numDisparities = num_disp,
+                                   blockSize      = block_size,
+                                   P1 = 8  * 3 * block_size**2,
+                                   P2 = 32 * 3 * block_size**2,
+                                   disp12MaxDiff = 1, #0 seemed marignally worse?
+                                   preFilterCap = 0,
+                                   uniquenessRatio = 10,
+                                   speckleRange = 0,  #1-2 seemed very speckly
+                                   speckleWindowSize = 25, # above 25 seems okay
+                                   mode = 4) # mode zero or 2 seem viable, 4 most accurate?
+
+    cpu = CPUTemperature()
 
     while True:
       # get frames
       leftFrame = ct1.next()
       rightFrame = ct2.next()
-      targets = rec.next(leftFrame,rightFrame)
+#      targets = rec.next(leftFrame,rightFrame)
 
       # display coordinate data
       fps1 = int(ct1.current_frame_rate)
@@ -89,32 +133,53 @@ def run():
       cv2.imshow("Left",leftFrame)
       cv2.imshow("Right",rightFrame)
 
+      #disp = stereo.compute( cv2.pyrDown(leftFrame), cv2.pyrDown(rightFrame)).astype(np.float32) / 16.0
+      disp = stereo.compute(leftFrame, rightFrame).astype(np.float32) / 16.0
+      cv2.imshow(disparity, (disp - min_disp)/num_disp)
+
       # detect keys
       key = cv2.waitKey(1) & 0xFF
       if key == ord('q'):
         break
 
-      if main_loop_count >= 50:
+      if main_loop_count >= 10:
         # update loop rate
         main_loop_rate = round(main_loop_count/(time.time()-t1),2)
         main_loop_count = 0
         t1 = time.time()
 
-        text = 'X: {:3.1f} Y: {:3.1f} Z: {:3.1f} D: {:3.1f} FPS: {}/{} LPS {}:'.format(X,Y,Z,D,fps1,fps2,main_loop_rate)
+        #print('generating 3d point cloud...',)
+        #h, w = imgL.shape[:2]
+        #f = 0.8*w                          # guess for focal length
+        #Q = np.float32([[1, 0, 0, -0.5*w],
+        #                 [0,-1, 0,  0.5*h], # turn points 180 deg around x-axis,
+        #                 [0, 0, 0,     -f], # so that y-axis looks up
+        #                 [0, 0, 1,      0]])
+        #points = cv.reprojectImageTo3D(disp, Q)
+        #colors = cv.cvtColor(imgL, cv.COLOR_BGR2RGB)
+        #mask = disp > disp.min()
+        #out_points = points[mask]
+        #out_colors = colors[mask]
+        #out_fn = 'out.ply'
+        #write_ply(out_fn, out_points, out_colors)
+        #print('%s saved' % out_fn)
+
+#        t = vcgencmd.measure_temp()
+        text = 'T: {} FPS: {}/{} LPS {}:'.format(cpu.temperature,fps1,fps2,main_loop_rate)
         print(text)
         lineloc = 0
         lineheight = 30
-        for t in text.split('\n'):
-          lineloc += lineheight
-          cv2.putText(leftFrame,
-                      t,
-                      (10,lineloc), # location
-                      cv2.FONT_HERSHEY_PLAIN, # font
-                      1.5, # size
-                      (0,255,0), # color
-                      1, # line width
-                      cv2.LINE_AA,
-                      False)
+#        for t in text.split('\n'):
+#          lineloc += lineheight
+#          cv2.putText(leftFrame,
+#                      t,
+#                      (10,lineloc), # location
+#                      cv2.FONT_HERSHEY_PLAIN, # font
+#                      1.5, # size
+#                      (0,255,0), # color
+#                      1, # line width
+#                      cv2.LINE_AA,
+#                      False)
 #      elif key != 255:
 #        print('KEY PRESS:',[chr(key)])
 
@@ -155,7 +220,7 @@ class Camera_Thread:
 
   # camera
   camera = None
-  camera_init = 0.1
+  camera_init = 0.01
 
   # buffer
   buffer = None
@@ -207,7 +272,7 @@ class Camera_Thread:
       
     # let loop stop
     while self.frame_grab_on:
-      time.sleep(0.1)
+      time.sleep(0.01)
 
     # stop camera if not already stopped
     if self.camera:
@@ -251,7 +316,7 @@ class Camera_Thread:
       fc += 1
 
       # update frame read rate
-      if fc >= 50:
+      if fc >= 10:
         self.current_frame_rate = round(fc/(time.time()-t1),2)
         fc = 0
         t1 = time.time()
@@ -309,6 +374,9 @@ class Recognizer_Thread:
     while True:
       t0 = time.time()
       frame = self.leftFrame
+
+      # height, width, number of channels in image
+#      print('Original dims: ', frame.shape)
 
       # resize the frame to have a width of 600 pixels (while maintaining the aspect ratio), and then grab the image dimensions
       #frame = imutils.resize(frame, width=600)
