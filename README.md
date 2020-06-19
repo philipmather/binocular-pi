@@ -151,8 +151,7 @@ mv 4.3.0.tar.gz opencv-4.3.0.tar.gz
 wget https://github.com/opencv/opencv_contrib/archive/4.3.0.tar.gz
 mv 4.3.0.tar.gz opencv_contrib-4.3.0.tar.gz 
 
-tar -xzvf opencv-4.3.0.tar.gz
-tar -xzvf opencv_contrib-4.3.0.tar.gz
+tar -xzvf opencv-4.3.0.tar.gz && tar -xzvf opencv_contrib-4.3.0.tar.gz
 
 pi@raspberrypi:~/Projects $ ls -lad opencv*
 drwxr-xr-x 11 pi pi     4096 Apr  3 12:45 opencv-4.3.0
@@ -241,6 +240,7 @@ cmake -D CMAKE_BUILD_TYPE=RELEASE \
         -D ENABLE_NEON=ON \
         -D ENABLE_VFPV3=ON \
         -D WITH_VTK=ON \
+        -D WITH_OPENGL=ON \
         -D WITH_TENGINE=OFF \
         -D WITH_OPENMP=ON \
         -D BUILD_TIFF=ON \
