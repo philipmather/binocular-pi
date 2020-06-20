@@ -79,7 +79,8 @@ pi@raspberrypi:~ $ sudo apt-get purge wolfram-engine libreoffice*
 pi@raspberrypi:~ $ sudo apt-get update
 pi@raspberrypi:~ $ sudo apt-get dist-upgrade
 pi@raspberrypi:~ $ sudo rpi-update
-pi@raspberrypi:~ $ sudo shutdown -r now
+pi@raspberrypi:~ $ sudo raspi-config
+# Use the cursor keys to select and open Interfacing Options, and then select Camera and follow the prompt to enable the camera. Then reboot
 pi@raspberrypi:~ $ sudo su -
 
 
@@ -186,7 +187,7 @@ Reading state information... Done
 Package 'python3-opencv' is not installed, so not removed
 0 upgraded, 0 newly installed, 0 to remove and 4 not upgraded.
 
-pi@raspberrypi:~/Projects/binocular-pi $ sudo apt-get install build-essential cmake git unzip pkg-config libjpeg-dev libtiff5-dev libpng-dev libavformat-dev libswscale-dev libv4l-dev libxvidcore-dev libx264-dev libfontconfig1-dev libcairo2-dev libgdk-pixbuf2.0-dev libpango1.0-dev libgtk2.0-dev libgtk-3-dev libatlas-base-dev gfortran libhdf5-dev libhdf5-serial-dev libhdf5-103 libqtgui4 libqtwebkit4 libqt4-test python3-pyqt5 python3-dev libtiff-dev libcanberra-gtk* libtbb2 libtbb-dev libdc1394-22-dev v4l-utils libopenblas-dev libatlas-base-dev libblas-dev liblapack-dev gfortran gcc-arm* protobuf-compiler g++-arm-linux-gnueabihf liblapacke-dev libvtk6-dev libgl1-mesa-dev libxt-dev libosmesa-dev libopenjpip7 libavresample-dev libgstreamer-plugins-base1.0-dev libopenjp2-tools tesseract-ocr tesseract-ocr-eng libtesseract-dev libleptonica-dev libopenjpip-dec-server libgtkglext1-dev libceres-dev libcaffe-cpu-dev libcaffe-cpu1 libgflags2.2 libboost-all-dev libgflags-dev libopenjpip-server libgoogle-glog-dev
+pi@raspberrypi:~/Projects/binocular-pi $ sudo apt-get install build-essential cmake git unzip pkg-config libjpeg-dev libtiff5-dev libpng-dev libavformat-dev libswscale-dev libv4l-dev libxvidcore-dev libx264-dev libfontconfig1-dev libcairo2-dev libgdk-pixbuf2.0-dev libpango1.0-dev libgtk2.0-dev libgtk-3-dev libatlas-base-dev gfortran libhdf5-dev libhdf5-serial-dev libhdf5-103 libqtgui4 libqtwebkit4 libqt4-test python3-pyqt5 python3-dev libtiff-dev libcanberra-gtk* libtbb2 libtbb-dev libdc1394-22-dev v4l-utils libopenblas-dev libatlas-base-dev libblas-dev liblapack-dev gfortran gcc-arm* protobuf-compiler g++-arm-linux-gnueabihf liblapacke-dev libvtk6-dev libgl1-mesa-dev libxt-dev libosmesa-dev libopenjpip7 libavresample-dev libgstreamer-plugins-base1.0-dev libopenjp2-tools tesseract-ocr tesseract-ocr-eng libtesseract-dev libleptonica-dev libopenjpip-dec-server libgtkglext1-dev libceres-dev libcaffe-cpu-dev libcaffe-cpu1 libgflags2.2 libboost-all-dev libgflags-dev libopenjpip-server libprotobuf-dev libgoogle-glog-dev libgoogle-glog0v5 libgflags2.2 libgflags-dev protobuf-compiler
 
 pi@raspberrypi:~/Projects/binocular-pi $ sudo pip3 install virtualenv virtualenvwrapper
 Looking in indexes: https://pypi.org/simple, https://www.piwheels.org/simple
@@ -217,6 +218,12 @@ Collecting pbr!=2.1.0,>=2.0.0 (from stevedore->virtualenvwrapper)
     100% |████████████████████████████████| 112kB 422kB/s 
 Installing collected packages: zipp, importlib-metadata, appdirs, filelock, distlib, virtualenv, virtualenv-clone, pbr, stevedore, virtualenvwrapper
 Successfully installed appdirs-1.4.4 distlib-0.3.0 filelock-3.0.12 importlib-metadata-1.6.1 pbr-5.4.5 stevedore-2.0.0 virtualenv-20.0.21 virtualenv-clone-0.5.4 virtualenvwrapper-5.0.0 zipp-3.1.0
+
+cd /usr/bin/
+pi@raspberrypi:/usr/bin $ sudo ln --symbolic ./vtk6 vtk
+pi@raspberrypi:/usr/bin $ ls -la vtk
+lrwxrwxrwx 1 root root 6 Jun 20 17:54 vtk -> ./vtk6
+cd ~/Projects/binocular-pi
 
 pi@raspberrypi:~/Projects/binocular-pi $ echo "# virtualenv and virtualenvwrapper
 > export WORKON_HOME=$HOME/.virtualenvs
@@ -284,7 +291,6 @@ Successfully built numpy
 Installing collected packages: numpy
 Successfully installed numpy-1.18.5
 
-
 (cv) pi@raspberrypi:~/Projects $ mkdir ~/Projects/opencv-4.3.0/build
 (cv) pi@raspberrypi:~/Projects $ cd ~/Projects/opencv-4.3.0/build
 
@@ -296,7 +302,6 @@ Successfully installed numpy-1.18.5
 >         -D OPENCV_EXTRA_MODULES_PATH=~/Projects/opencv_contrib-4.3.0/modules/ \
 >         -D Atlas_INCLUDE_DIR=/usr/include/arm-linux-gnueabihf \
 >         -D ENABLE_NEON=ON \
->         -D ENABLE_VFPV3=ON \
 >         -D WITH_VTK=ON \
 >         -D WITH_OPENGL=ON \
 >         -D WITH_TENGINE=OFF \
@@ -318,54 +323,50 @@ Successfully installed numpy-1.18.5
 >         -D OPENCV_GENERATE_PKGCONFIG=ON \
 >         -D BUILD_EXAMPLES=OFF ..
 
+-DCMAKE_PREFIX_PATH=/usr/lib/OGRE/cmake
+
 
 
 cmake \
   -D CMAKE_BUILD_TYPE=RELEASE \
   -D CMAKE_INSTALL_PREFIX=/usr/local \
   -D Atlas_INCLUDE_DIR=/usr/include/arm-linux-gnueabihf \
+  -D ENABLE_NEON=ON \
   -D WITH_VTK=ON \
   -D WITH_OPENGL=ON \
-  -D WITH_TENGINE=OFF \
   -D WITH_OPENMP=ON \
   -D WITH_FFMPEG=ON \
   -D WITH_GSTREAMER=ON \
   -D WITH_TBB=ON \
   -D WITH_V4L=ON \
   -D WITH_LIBV4L=ON \
+  -D WITH_TENGINE=OFF \
+  -D WITH_EIGEN=ON \
   -D OPENCV_EXTRA_MODULES_PATH=~/Projects/opencv_contrib-4.3.0/modules/ \
   -D OPENCV_EXTRA_EXE_LINKER_FLAGS=-latomic \
   -D OPENCV_ENABLE_NONFREE=ON \
   -D OPENCV_GENERATE_PKGCONFIG=ON \
   -D INSTALL_C_EXAMPLES=OFF \
   -D INSTALL_PYTHON_EXAMPLES=OFF \
+  -D BUILD_PROTOBUF=ON \
+  -D UPDATE_PROTO_FILES=ON \
   -D BUILD_TIFF=ON \
   -D BUILD_NEW_PYTHON_SUPPORT=ON \
   -D BUILD_opencv_python3=TRUE \
   -D BUILD_TBB=ON \
   -D BUILD_TESTS=OFF \
+
   -D BUILD_EXAMPLES=OFF ..
          
-#         -D BUILD_PROTOBUF=ON \
+
+# Later https://docs.opencv.org/master/db/db8/tutorial_sfm_installation.html
+#  -D GLOG_LIBRARY=/usr/lib/arm-linux-gnueabihf/libglog.so \
+#  -D GFLAGS_LIBRARY=/usr/lib/arm-linux-gnueabihf/libgflags.so \
+# apt-get install libceres-dev
+
+# -D BUILD_PROTOBUF=ON \
+# -D UPDATE_PROTO_FILES=ON \
 # -D BLAS=open \ ##?
--D UPDATE_PROTO_FILES=ON \
--D ENABLE_VFPV3=ON \
-# No longer require these see https://github.com/opencv/opencv/issues/13114
-#         -D ENABLE_NEON=ON \
-#         -D ENABLE_VFPV3=ON \
-# Still results in
-#-- Performing Test HAVE_CPU_NEON_SUPPORT (check file: cmake/checks/cpu_neon.cpp)
-#-- Performing Test HAVE_CPU_NEON_SUPPORT - Success
-#-- Performing Test HAVE_CPU_FP16_SUPPORT (check file: cmake/checks/cpu_fp16.cpp)
-#-- Performing Test HAVE_CPU_FP16_SUPPORT - Success
-#-- Performing Test HAVE_CPU_BASELINE_FLAGS
-#-- Performing Test HAVE_CPU_BASELINE_FLAGS - Success
-
-
--- Could not find OpenBLAS include. Turning OpenBLAS_FOUND off
-Could NOT find JNI 
-
-      -DCPU_BASELINE="NEON" \
-      -DWITH_INF_ENGINE=ON \
-
-#sudo apt install libjasper-dev libpng12-dev ibavcodec-dev mesa-common-dev
+#  -D WITH_CUDA=OFF \
+#https://mindchasers.com/dev/ubuntu-opencv
+#https://qengineering.eu/install-opencv-4.3-on-raspberry-64-os.html
