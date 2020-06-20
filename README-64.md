@@ -76,22 +76,81 @@ pi@raspberrypi:~ $ git clone git@github.com:philipmather/binocular-pi.git
 
 pi@raspberrypi:~ $ sudo apt-get purge wolfram-engine libreoffice*
 
-pi@raspberrypi:~ $ DISPLAY=:0 conky 
 pi@raspberrypi:~ $ sudo apt-get update
 pi@raspberrypi:~ $ sudo apt-get dist-upgrade
 pi@raspberrypi:~ $ sudo rpi-update
 pi@raspberrypi:~ $ sudo shutdown -r now
 pi@raspberrypi:~ $ sudo su -
-pi@raspberrypi:~ $ DISPLAY=:0 conky &
 
-   25  vi /boot/config.txt
-   26  sudo vi /boot/config.txt
-   27  sudo apt-get install vim
+
    28  echo "set nocompatible" >> ~/.vimrc
    29  sudo vi /boot/config.txt 
-   30  sudo apt-get install vim
-   
-   
+   30  sudo apt-get install vim conky
+
+sudo tee "/etc/conky/conky.conf" > /dev/null <<'EOF'
+conky.config = {
+    alignment = 'middle_middle',
+    background = false,
+    border_width = 1,
+    cpu_avg_samples = 2,
+	default_color = 'white',
+    default_outline_color = 'white',
+    default_shade_color = 'white',
+    draw_borders = false,
+    draw_graph_borders = true,
+    draw_outline = false,
+    draw_shades = false,
+    use_xft = true,
+    font = 'DejaVu Sans Mono:size=24',
+    gap_x = 5,
+    gap_y = 60,
+    minimum_height = 5,
+    minimum_width = 5,
+    net_avg_samples = 2,
+    no_buffers = true,
+    out_to_console = false,
+    out_to_stderr = false,
+    extra_newline = false,
+    own_window = true,
+    own_window_class = 'Conky',
+    own_window_type = 'desktop',
+    stippled_borders = 0,
+    update_interval = 1.0,
+    uppercase = false,
+    use_spacer = 'none',
+    show_graph_scale = false,
+    show_graph_range = false
+}
+
+conky.text = [[
+${if_existing /proc/net/route wlan0}
+${addr wlan0}
+${else}${if_existing /proc/net/route eth0}
+${addr eth0}
+${else}
+Network disconnected
+${endif}${endif}
+]]
+EOF
+
+sudo tee "/usr/bin/conky.sh" > /dev/null <<'EOF'
+#!/bin/sh
+(sleep 4s && conky) &
+exit 0
+EOF
+
+sudo chmod 744 /usr/bin/conky.sh
+
+sudo tee "/etc/xdg/autostart/conky.desktop" > /dev/null <<'EOF'
+[Desktop Entry]
+Name=conky
+Type=Application
+Exec=sh /usr/bin/conky.sh
+Terminal=false
+Comment=system monitoring tool.Categories=Utility;
+EOF
+
+pi@raspberrypi:~ $ DISPLAY=:0 conky &
 ```
 
 ## Make Python 3 default and use a virtual environment
