@@ -253,6 +253,8 @@ created virtual environment CPython3.7.3.final.0-64 in 930ms
   activators BashActivator,CShellActivator,FishActivator,PowerShellActivator,PythonActivator,XonshActivator
 virtualenvwrapper.user_scripts creating /home/pi/.virtualenvs/cv/usr/local/bin/predeactivate
 
+sudo pip3 install numpy imutils sklearn
+
 (cv) pi@raspberrypi:~/Projects/binocular-pi $ cd ~/Projects/
 
 (cv) pi@raspberrypi:~/Projects $ wget https://github.com/opencv/opencv/archive/4.3.0.tar.gz -O opencv-4.3.0.tar.gz 
@@ -274,58 +276,12 @@ pi@raspberrypi:~/Projects $ sudo sed -ie 's/CONF_SWAPSIZE=.*/CONF_SWAPSIZE=2048/
 
 pi@raspberrypi:~/Projects/opencv-4.3.0/build $ workon cv
 
-(cv) pi@raspberrypi:~/Projects/opencv-4.3.0/build $ pip install numpy
-Looking in indexes: https://pypi.org/simple, https://www.piwheels.org/simple
-Collecting numpy
-  Downloading numpy-1.18.5.zip (5.4 MB)
-     |████████████████████████████████| 5.4 MB 59 kB/s 
-  Installing build dependencies ... done
-  Getting requirements to build wheel ... done
-    Preparing wheel metadata ... done
-Building wheels for collected packages: numpy
-  Building wheel for numpy (PEP 517) ... /
-done
-  Created wheel for numpy: filename=numpy-1.18.5-cp37-cp37m-linux_aarch64.whl size=11587825 sha256=cc5107f59bb5a380ecb79d8a062493f1389ce00796f7eb364b662c9027b7004f
-  Stored in directory: /home/pi/.cache/pip/wheels/32/f0/3a/ebd0777a9772fd6db59981343ae81b3e025fa572878b2a1bd8
-Successfully built numpy
-Installing collected packages: numpy
-Successfully installed numpy-1.18.5
-
+(cv) pi@raspberrypi:~/Projects/opencv-4.3.0/build $ pip install numpy imutils scikit-lean
 (cv) pi@raspberrypi:~/Projects $ mkdir ~/Projects/opencv-4.3.0/build
 (cv) pi@raspberrypi:~/Projects $ cd ~/Projects/opencv-4.3.0/build
 
 # See https://github.com/opencv/opencv/issues/12957
 (cv) pi@raspberrypi:~/Projects/opencv-4.3.0/build $ sed -ie 's#SET(Open_BLAS_INCLUDE_SEARCH_PATHS#SET(Open_BLAS_INCLUDE_SEARCH_PATHS\n  /usr/include/#;s#SET(Open_BLAS_LIB_SEARCH_PATHS#SET(Open_BLAS_LIB_SEARCH_PATHS\n        /usr/lib/aarch64-linux-gnu/#' ../cmake/OpenCVFindOpenBLAS.cmake
-
-(cv) pi@raspberrypi:~/Projects/opencv-4.3.0/build $ cmake -D CMAKE_BUILD_TYPE=RELEASE \
->         -D CMAKE_INSTALL_PREFIX=/usr/local \
->         -D OPENCV_EXTRA_MODULES_PATH=~/Projects/opencv_contrib-4.3.0/modules/ \
->         -D Atlas_INCLUDE_DIR=/usr/include/arm-linux-gnueabihf \
->         -D ENABLE_NEON=ON \
->         -D WITH_VTK=ON \
->         -D WITH_OPENGL=ON \
->         -D WITH_TENGINE=OFF \
->         -D WITH_OPENMP=ON \
->         -D BUILD_TIFF=ON \
->         -D WITH_FFMPEG=ON \
->         -D WITH_GSTREAMER=ON \
->         -D WITH_TBB=ON \
->         -D BUILD_TBB=ON \
->         -D BUILD_TESTS=OFF \
->         -D WITH_V4L=ON \
->         -D WITH_LIBV4L=ON \
->         -D OPENCV_EXTRA_EXE_LINKER_FLAGS=-latomic \
->         -D OPENCV_ENABLE_NONFREE=ON \
->         -D INSTALL_C_EXAMPLES=OFF \
->         -D INSTALL_PYTHON_EXAMPLES=OFF \
->         -D BUILD_NEW_PYTHON_SUPPORT=ON \
->         -D BUILD_opencv_python3=TRUE \
->         -D OPENCV_GENERATE_PKGCONFIG=ON \
->         -D BUILD_EXAMPLES=OFF ..
-
--DCMAKE_PREFIX_PATH=/usr/lib/OGRE/cmake
-
-
 
 cmake \
   -D CMAKE_BUILD_TYPE=RELEASE \
@@ -355,9 +311,12 @@ cmake \
   -D BUILD_opencv_python3=TRUE \
   -D BUILD_TBB=ON \
   -D BUILD_TESTS=OFF \
-
   -D BUILD_EXAMPLES=OFF ..
-         
+
+sudo make install
+sudo ldconfig
+sudo apt-get update
+ln -s /usr/local/lib/python3.7/dist-packages/cv2/python-3.7/cv2.cpython-37m-aarch64-linux-gnu.so
 
 # Later https://docs.opencv.org/master/db/db8/tutorial_sfm_installation.html
 #  -D GLOG_LIBRARY=/usr/lib/arm-linux-gnueabihf/libglog.so \
